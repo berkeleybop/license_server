@@ -8,6 +8,10 @@ module ApplicationHelper
   end
 
   def find_user_by_bp_username(bp_username)
-    LinkedData::Client::Models::User.find_by_username(bp_username).first
+    return nil if bp_username.blank?
+    user = LinkedData::Client::Models::User.get("#{$BP_REST_URL}/users/#{bp_username}")
+    return nil if user.nil?
+    return nil if user.respond_to?(:errors) && user.errors
+    user
   end
 end
