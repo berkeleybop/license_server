@@ -3,7 +3,6 @@ require 'base64'
 require 'uuid'
 
 class LicensesController < ApplicationController
-  skip_before_action :verify_authenticity_token
   layout 'main'
   before_action :check_access
   before_action :check_license_exists
@@ -183,17 +182,16 @@ class LicensesController < ApplicationController
   end
 
   def save_license_from_params()
-    params[:license].permit!
-
     if params[:id]
       @license = License.find(params[:id])
     else
       @license = License.new
     end
 
-    params[:license][:bp_username] ||= session[:user].username
-    @license.assign_attributes(params[:license])
-    @errors = validate(params[:license])
+    attrs = license_params
+    attrs[:bp_username] = session[:user].username if attrs[:bp_username].blank?
+    @license.assign_attributes(attrs)
+    @errors = validate(attrs)
 
     unless @errors[:error]
       if @license.valid?
@@ -202,6 +200,16 @@ class LicensesController < ApplicationController
         @errors = response_errors(@license.errors)
       end
     end
+  end
+
+  # Strong parameters (replaces the old `params[:license].permit!`). Admin-only
+  # fields are permitted only for admins, which also closes a privilege-escalation
+  # hole: previously a non-admin could POST approval_status=approved and have a
+  # license key generated for themselves.
+  def license_params
+    permitted = %i[appliance_id first_name last_name organization project_info reason license_purpose_id]
+    permitted += %i[bp_username approval_status identification comments] if helpers.current_user_admin?
+    params.require(:license).permit(*permitted)
   end
 
   def check_access()
@@ -233,14 +241,9 @@ class LicensesController < ApplicationController
   end
 
   def init_max_ids()
-    if helpers.current_user_admin?
-      max_id_sql = "SELECT appliance_id, MAX(id) FROM licenses GROUP BY appliance_id"
-    else
-      max_id_sql = "SELECT appliance_id, MAX(id) FROM licenses WHERE bp_username = '#{session[:user].username}' GROUP BY appliance_id"
-    end
-
-    max_ids_raw = License.connection.select_all(max_id_sql)
-    @max_ids = max_ids_raw.rows.to_h
+    # Parameterized via Active Record (was raw SQL interpolating the username).
+    scope = helpers.current_user_admin? ? License.all : License.where(bp_username: session[:user].username)
+    @max_ids = scope.group(:appliance_id).maximum(:id)
   end
 
   def validate(params)
