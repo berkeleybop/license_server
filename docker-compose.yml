@@ -43,5 +43,26 @@ services:
     ports:
       - "3000:3000"
 
+  # Run the test suite:  docker compose run --rm test
+  # Built with the test gem group included; only runs under the "test" profile,
+  # so a plain `docker compose up` ignores it.
+  test:
+    profiles: ["test"]
+    build:
+      context: .
+      args:
+        BUNDLE_WITHOUT: "deployment"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RAILS_ENV: test
+      DB_HOST: db
+      DB_USERNAME: root
+      DB_PASSWORD: ${DB_PASSWORD:-rootpass}
+      BP_REST_URL: ${BP_REST_URL:-https://data.bioontology.org}
+      API_KEY: ${API_KEY:-test}
+    command: ["bin/rails", "test"]
+
 volumes:
   mysql-data:

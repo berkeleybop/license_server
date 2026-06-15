@@ -3,8 +3,11 @@
 # Run:   see docker-compose.yml (app + mysql + memcached).
 FROM ruby:3.2.9-slim
 
+# Overridable so the compose `test` service can build with the test gem group
+# included; production excludes development/test/deployment.
+ARG BUNDLE_WITHOUT="development:test:deployment"
 ENV RAILS_ENV=production \
-    BUNDLE_WITHOUT="development:test:deployment" \
+    BUNDLE_WITHOUT="${BUNDLE_WITHOUT}" \
     RAILS_SERVE_STATIC_FILES=true \
     RAILS_LOG_TO_STDOUT=true
 
