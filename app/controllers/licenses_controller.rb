@@ -19,13 +19,12 @@ class LicensesController < ApplicationController
     @license = License.new
 
     unless helpers.current_user_admin?
-      unless session[:user].firstName.strip.empty?
-        @license.first_name = session[:user].firstName.strip
-      end
-
-      unless session[:user].lastName.strip.empty?
-        @license.last_name = session[:user].lastName.strip
-      end
+      # Guard against BioPortal accounts with no first/last name (#20):
+      # firstName/lastName can be nil, and nil.strip would raise (500).
+      first_name = session[:user].firstName.to_s.strip
+      last_name  = session[:user].lastName.to_s.strip
+      @license.first_name = first_name unless first_name.empty?
+      @license.last_name  = last_name unless last_name.empty?
     end
   end
 

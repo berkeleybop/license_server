@@ -87,4 +87,16 @@ class AuthAndAccessTest < ActionDispatch::IntegrationTest
     assert_equal 'pending', created.approval_status, "non-admin must not self-approve"
     assert_nil created.license_key
   end
+
+  # Regression test for ncbo/license_server#20: a BioPortal account with no first/
+  # last name used to 500 on the "Create License" form (nil.strip). This is the
+  # kind of bug the new test suite + CI catch.
+  test "the create form renders for an account with no first/last name (#20)" do
+    user = fake_bp_user(username: 'noname', first: nil, last: nil)
+    with_bp(user) do
+      login_as(user)
+      get '/licenses/new'
+      assert_response :success
+    end
+  end
 end
